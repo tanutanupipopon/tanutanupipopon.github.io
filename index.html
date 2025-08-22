@@ -272,6 +272,22 @@ fetch('data.json')
   renderTable(data);
   filterTable();
 });
+
+document.getElementById('showDeleted').addEventListener('change', ()=> {
+  const checkbox = document.getElementById('showDeleted');
+  if (checkbox.checked) {
+    const password = prompt("パスワードを入力してください:");
+    if (password !== "sm28789389") {
+      alert("パスワードが違います");
+      checkbox.checked = false;
+      return;
+    }
+  }
+  renderTable(data);
+  filterTable();
+});
+
+  
 </script>
 </body>
 </html>
