@@ -10,17 +10,16 @@ body {
   background-size: 100% auto;
   background-attachment: scroll;
 }
-
 h1 { text-align:center; color:#fff; margin-bottom:20px; }
 
-#searchContainer, #summarySearchContainer {
+#searchContainer, #descSearchContainer {
   display: flex;
   gap: 5px;
   justify-content: center;
   align-items: center;
   margin-bottom: 10px;
 }
-#searchInput, #summarySearchInput {
+input[type="text"] {
   padding:5px;
   width:200px;
   border:1px solid #ccc;
@@ -42,20 +41,17 @@ table {
   border-collapse: collapse;
   width: 80%;
   margin: 0 auto;
-  table-layout: auto;
   background-color: #fff;
 }
 th, td {
   border: 1px solid #ccc;
   padding: 6px 10px;
   word-break: break-word;
-  vertical-align: middle; 
 }
 th { background-color: #99ffcc; }
 tr:hover, tr.selected { background-color: #c3fade; }
 td.song { width:35%; max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
-td.date { text-align:center; padding-left:10px; padding-right:10px; white-space:nowrap; }
-
+td.date { text-align:center; white-space:nowrap; }
 a { color: #007bff; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
@@ -72,31 +68,25 @@ a:hover { text-decoration: underline; }
   border-radius: 4px;
   display: inline-block;
 }
-
-@media screen and (max-width:600px){
-  td.song { max-width: 40%; }
-  table, th, td { font-size:14px; }
-}
-td.nico, td.youtube, td.detail { text-align: center; }
 </style>
 </head>
 <body>
 
 <h1>動画リスト</h1>
 
-<!-- 曲名・歌唱者・本家制作検索バー -->
+<!-- 曲名・歌唱者・本家制作検索 -->
 <div id="searchContainer">
   <input id="searchInput" placeholder="曲名・歌唱者・本家制作検索...">
   <button id="clearButton">クリア</button>
 </div>
 
-<!-- 概要欄検索バー -->
-<div id="summarySearchContainer">
-  <input id="summarySearchInput" placeholder="概要欄検索...">
-  <button id="summaryClearButton">クリア</button>
+<!-- 概要欄検索 -->
+<div id="descSearchContainer">
+  <input id="descSearchInput" placeholder="概要欄を検索...">
+  <button id="descClearButton">クリア</button>
 </div>
 
-<!-- 削除済みの動画を表示するチェックボックス（パスワード制御付き） -->
+<!-- 削除済みの動画表示 -->
 <div id="showDeletedContainer">
   <label>
     <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する
@@ -126,24 +116,21 @@ td.nico, td.youtube, td.detail { text-align: center; }
 
 <script>
 const PASSWORD = "sm28789389";
-let data = [];
 
 fetch('data.json')
 .then(res => res.json())
-.then(json => {
-  data = json;
+.then(data => {
   const tbody = document.querySelector('#videoTable tbody');
   let asc = true;
 
   function renderTable(sortedData){
     tbody.innerHTML = '';
     sortedData.forEach((item,index)=>{
-      const isDeleted = item["今見れる？"] === "不可";
+      const isDeleted = item["今見れるか"] === "不可";
       if(isDeleted && !document.getElementById('showDeleted').checked) return;
 
       let nicoLink = (item["ニコニコ"] && item["ニコニコ"]!=="－") 
         ? `<a href="https://${item["ニコニコ"]}" target="_blank">▶ニコニコ動画</a>` : "－";
-
       let ytLink = (item["YouTube"] && item["YouTube"]!=="－") 
         ? `<a href="${item["YouTube"].startsWith('http') ? item["YouTube"] : 'https://' + item["YouTube"]}" target="_blank">▶YouTube</a>` : "－";
 
@@ -154,7 +141,7 @@ fetch('data.json')
         <td class="nico">${nicoLink}</td>
         <td class="youtube">${ytLink}</td>
         <td class="detail"><button onclick="showDetails(${index})">詳細</button></td>
-        <td style="display:none;">${item["出演者"]} ${item["本家様"]} ${item["本家制作"]} ${item["今見れる？"]}</td>
+        <td style="display:none;">${item["歌唱者"]} ${item["本家様"]} ${item["本家制作"]} ${item["今見れるか"]}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -163,17 +150,17 @@ fetch('data.json')
   window.showDetails = function(index){
     const item = data[index];
     const mainLink = item["本家様"] &&
-                     !["オリジナル曲","？","恐らく未投稿","自作","不明","未投稿"].includes(item["本家様"])
-                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>` : item["本家様"];
+      !["オリジナル曲","？","恐らく未投稿","自作","不明","未投稿"].includes(item["本家様"])
+      ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>` : item["本家様"];
     document.getElementById('modalDetails').innerHTML = `
       <p><strong>投稿日:</strong> ${item["投稿日"]}</p>
       <p><strong>曲名:</strong> ${item["曲名"]}</p>
-      <p><strong>歌唱者:</strong> ${item["出演者"]}</p>
+      <p><strong>歌唱者:</strong> ${item["歌唱者"]}</p>
       <p><strong>イラスト:</strong> ${item["イラスト"]}</p>
       <p><strong>創造神:</strong> ${item["本家制作"]}</p>
       <p><strong>本家様:</strong> ${mainLink}</p>
-      <p><strong>今見れる？:</strong> ${item["今見れる？"]}</p>
-      <p><strong>概要欄:</strong> ${item["概要欄"]||""}</p>
+      <p><strong>今見れるか:</strong> ${item["今見れるか"]}</p>
+      <p><strong>概要欄:</strong> ${item["概要欄"] || ""}</p>
       <p><strong>備考:</strong> ${item["備考"]}</p>
     `;
     document.getElementById('modal').style.display='block';
@@ -186,53 +173,42 @@ fetch('data.json')
 
   function normalize(str){
     return (str||"").replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60))
-                    .replace(/\s/g,"")
-                    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
-                    .toLowerCase();
+              .replace(/\s/g,"")
+              .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+              .toLowerCase();
   }
 
-  function applyFilters(){
-    const searchFilter = normalize(document.getElementById('searchInput').value);
-    const summaryFilter = normalize(document.getElementById('summarySearchInput').value);
+  function filterTable(){
+    const filter = normalize(document.getElementById('searchInput').value);
+    const descFilter = normalize(document.getElementById('descSearchInput').value);
     const showDeleted = document.getElementById('showDeleted').checked;
 
-    document.querySelectorAll('#videoTable tbody tr').forEach((row,i)=>{
-      const tds = row.querySelectorAll('td');
-      const title = normalize(tds[1].textContent);
-      const extra = normalize(tds[5].textContent);
-      const summary = normalize(data[i]["概要欄"]||"");
-      const isDeleted = tds[5].textContent.includes("不可");
+    document.querySelectorAll('#videoTable tbody tr').forEach((row,i) => {
+      const item = data[i];
+      if(!item) return;
+      const title = normalize(item["曲名"]);
+      const singer = normalize(item["歌唱者"]);
+      const creator = normalize(item["本家制作"]);
+      const desc = normalize(item["概要欄"]);
+      const isDeleted = item["今見れるか"] === "不可";
 
-      const matches = (!searchFilter || title.includes(searchFilter) || extra.includes(searchFilter)) &&
-                      (!summaryFilter || summary.includes(summaryFilter));
+      const matchesMain = (!filter || title.includes(filter) || singer.includes(filter) || creator.includes(filter));
+      const matchesDesc = (!descFilter || desc.includes(descFilter));
 
-      row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+      row.style.display = (matchesMain && matchesDesc && (!isDeleted || showDeleted)) ? '' : 'none';
     });
   }
 
-  document.getElementById('searchInput').addEventListener('input', applyFilters);
-  document.getElementById('summarySearchInput').addEventListener('input', applyFilters);
-  document.getElementById('clearButton').addEventListener('click', ()=>{
-    document.getElementById('searchInput').value='';
-    applyFilters();
-  });
-  document.getElementById('summaryClearButton').addEventListener('click', ()=>{
-    document.getElementById('summarySearchInput').value='';
-    applyFilters();
-  });
+  document.getElementById('searchInput').addEventListener('input', filterTable);
+  document.getElementById('descSearchInput').addEventListener('input', filterTable);
 
-  document.getElementById('showDeleted').addEventListener('click', function(e){
-    if(this.checked){
-      const pwd = prompt("削除済み動画を表示するにはパスワードを入力","");
-      if(pwd !== PASSWORD){
-        alert("パスワードが違います");
-        e.preventDefault();
-        this.checked = false;
-        return false;
-      }
-    }
-    renderTable(data);
-    applyFilters();
+  document.getElementById('clearButton').addEventListener('click', () => {
+    document.getElementById('searchInput').value = '';
+    filterTable();
+  });
+  document.getElementById('descClearButton').addEventListener('click', () => {
+    document.getElementById('descSearchInput').value = '';
+    filterTable();
   });
 
   document.getElementById('sortButton').addEventListener('click',()=>{
@@ -241,11 +217,26 @@ fetch('data.json')
       return asc ? new Date(a["投稿日"]) - new Date(b["投稿日"]) : new Date(b["投稿日"]) - new Date(a["投稿日"]);
     });
     renderTable(sorted);
-    applyFilters();
+    filterTable();
+  });
+
+  const showDeletedCheckbox = document.getElementById('showDeleted');
+  showDeletedCheckbox.addEventListener('click', function(e){
+    if(showDeletedCheckbox.checked){
+      const pwd = prompt("削除済み動画を表示するにはパスワードを入力してください","");
+      if(pwd !== PASSWORD){
+        alert("パスワードが違います");
+        e.preventDefault();
+        showDeletedCheckbox.checked = false;
+        return false;
+      }
+    }
+    renderTable(data);
+    filterTable();
   });
 
   renderTable(data);
-  applyFilters();
+  filterTable();
 });
 </script>
 </body>
