@@ -25,14 +25,14 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   margin-bottom: 10px;
 }
 
-#searchInput, #descriptionSearchInput {
+#searchInput, #descriptionSearchInput, #passwordInput {
   padding:5px;
   width:250px;
   border:1px solid #ccc;
   border-radius:4px;
 }
 
-#clearButton, #clearDescriptionButton {
+#clearButton, #clearDescriptionButton, #unlockButton {
   padding:5px 10px;
   border:none;
   background-color:#38b48b;
@@ -40,7 +40,7 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   border-radius:4px;
   cursor:pointer;
 }
-#clearButton:hover, #clearDescriptionButton:hover { background-color:#2e8b57; }
+#clearButton:hover, #clearDescriptionButton:hover, #unlockButton:hover { background-color:#2e8b57; }
 
 #showDeletedContainer { text-align:center; margin-bottom:10px; }
 
@@ -117,11 +117,13 @@ td.nico, td.youtube, td.detail { text-align: center; }
   <button id="clearDescriptionButton">クリア</button>
 </div>
 
-<!-- 削除済みの動画表示 -->
+<!-- 削除済みの動画表示(パスワード認証) -->
 <div id="showDeletedContainer">
   <label>
-    <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する
+    <input type="checkbox" id="showDeleted" disabled> 削除済みの動画も表示する
   </label>
+  <input type="password" id="passwordInput" placeholder="パスワード">
+  <button id="unlockButton">解除</button>
 </div>
 
 <table id="videoTable">
@@ -151,6 +153,7 @@ fetch('data.json')
 .then(data => {
   const tbody = document.querySelector('#videoTable tbody');
   let asc = true;
+  const PASSWORD = "sm28789389"; // パスワード設定
 
   function renderTable(sortedData){
     tbody.innerHTML = '';
@@ -171,7 +174,7 @@ fetch('data.json')
         <td class="nico">${nicoLink}</td>
         <td class="youtube">${ytLink}</td>
         <td class="detail"><button onclick="showDetails(${index})">詳細</button></td>
-        <td style="display:none;">${item["出演者"]} ${item["本家制作"]} ${item["曲名"]} ${item["備考"]} ${item["今見れる？"]}</td>
+        <td style="display:none;">${item["出演者"]} ${item["本家制作"]} ${item["曲名"]} ${item["今見れる？"]}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -201,11 +204,10 @@ fetch('data.json')
     if(event.target === modal){ modal.style.display='none'; }
   }
 
-  function hiraToKana(str){
-    return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
-  }
+  function hiraToKana(str){ return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60)); }
   function normalizeSpace(str){ return str.replace(/\s+/g, ''); }
 
+  // メイン検索
   function filterTable(){
     const filter = normalizeSpace(document.getElementById('searchInput').value.toLowerCase());
     const filterKana = normalizeSpace(hiraToKana(filter));
@@ -214,35 +216,48 @@ fetch('data.json')
     document.querySelectorAll('#videoTable tbody tr').forEach(row => {
       const searchCell = normalizeSpace(row.querySelector('td:last-child').textContent.toLowerCase());
       const searchCellKana = normalizeSpace(hiraToKana(searchCell));
-      let combined = searchCell;
-      let combinedKana = searchCellKana;
 
-      const matches = combined.includes(filter) || combinedKana.includes(filterKana);
+      const matches = searchCell.includes(filter) || searchCellKana.includes(filterKana);
       const isDeleted = row.querySelector('td:last-child').textContent.includes("不可");
+
       row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
     });
   }
 
+  // 概要欄検索
   function filterDescription(){
     const filter = normalizeSpace(document.getElementById('descriptionSearchInput').value.toLowerCase());
     const filterKana = normalizeSpace(hiraToKana(filter));
 
-    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-      const description = normalizeSpace(row.querySelector('td:last-child').textContent.toLowerCase());
-      const descriptionKana = normalizeSpace(hiraToKana(description));
+    document.querySelectorAll('#videoTable tbody tr').forEach((row,i) => {
+      const desc = normalizeSpace(data[i]["備考"].toLowerCase());
+      const descKana = normalizeSpace(hiraToKana(desc));
 
-      row.style.display = (description.includes(filter) || descriptionKana.includes(filterKana)) ? '' : 'none';
+      row.style.display = (desc.includes(filter) || descKana.includes(filterKana)) ? '' : 'none';
     });
   }
 
+  // パスワード認証
+  document.getElementById('unlockButton').addEventListener('click',()=>{
+    const pass = document.getElementById('passwordInput').value;
+    if(pass === PASSWORD){
+      document.getElementById('showDeleted').disabled = false;
+      alert("削除済み表示が解除されました");
+    } else {
+      alert("パスワードが違います");
+    }
+    document.getElementById('passwordInput').value = '';
+  });
+
   document.getElementById('searchInput').addEventListener('input', filterTable);
+  document.getElementById('descriptionSearchInput').addEventListener('input', filterDescription);
+
   document.getElementById('showDeleted').addEventListener('change', ()=>{renderTable(data); filterTable();});
+
   document.getElementById('clearButton').addEventListener('click', () => {
     document.getElementById('searchInput').value = '';
     filterTable();
   });
-
-  document.getElementById('descriptionSearchInput').addEventListener('input', filterDescription);
   document.getElementById('clearDescriptionButton').addEventListener('click', () => {
     document.getElementById('descriptionSearchInput').value = '';
     filterDescription();
