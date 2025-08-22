@@ -5,32 +5,30 @@
 <title>動画リスト</title>
 <style>
 body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
-  color: #000;
-  margin:0;
-  background: linear-gradient(to bottom, #7ee0a5 0%, #38b48b 30%, #55c69b 60%, #ccffe5 100%);
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-image: url("https://github.com/tanutanupipopon/tanutanupipopon.github.io/raw/refs/heads/main/tanutanu.jpg");
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  background-attachment: scroll;
 }
 
 h1 { text-align:center; color:#fff; margin-bottom:20px; }
 
-#searchContainer {
+#searchContainer, #summarySearchContainer {
   display: flex;
   gap: 5px;
   justify-content: center;
   align-items: center;
   margin-bottom: 10px;
 }
-#searchInput {
+
+#searchInput, #summarySearchInput {
   padding:5px;
-  width:250px;
+  width:200px;
   border:1px solid #ccc;
   border-radius:4px;
 }
 
-#clearButton {
+#clearButton, #summaryClearButton {
   padding:5px 10px;
   border:none;
   background-color:#38b48b;
@@ -38,12 +36,10 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   border-radius:4px;
   cursor:pointer;
 }
-#clearButton:hover { background-color:#2e8b57; }
 
-#showDeletedContainer {
-  text-align:center;
-  margin-bottom:10px;
-}
+#clearButton:hover, #summaryClearButton:hover { background-color:#2e8b57; }
+
+#showDeletedContainer { text-align:center; margin-bottom:10px; }
 
 table {
   border-collapse: collapse;
@@ -62,9 +58,7 @@ th, td {
 
 th { background-color: #99ffcc; }
 
-tr:hover, tr.selected {
-  background-color: #c3fade;
-}
+tr:hover, tr.selected { background-color: #c3fade; }
 
 td.song { width:35%; max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
 td.date { text-align:center; padding-left:10px; padding-right:10px; white-space:nowrap; }
@@ -109,11 +103,19 @@ td.nico, td.youtube, td.detail { text-align: center; }
 
 <h1>動画リスト</h1>
 
+<!-- 曲名・歌唱者・本家制作検索バー -->
 <div id="searchContainer">
-  <input id="searchInput" placeholder="検索...">
+  <input id="searchInput" placeholder="曲名・歌唱者・本家制作検索...">
   <button id="clearButton">クリア</button>
 </div>
 
+<!-- 概要欄専用検索バー -->
+<div id="summarySearchContainer">
+  <input id="summarySearchInput" placeholder="概要欄検索...">
+  <button id="summaryClearButton">クリア</button>
+</div>
+
+<!-- 削除済みの動画を表示するチェックボックス（パスワード制御付き） -->
 <div id="showDeletedContainer">
   <label>
     <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する
@@ -169,7 +171,7 @@ fetch('data.json')
         <td class="nico">${nicoLink}</td>
         <td class="youtube">${ytLink}</td>
         <td class="detail"><button onclick="showDetails(${index})">詳細</button></td>
-        <td style="display:none;">${item["出演者"]} ${item["本家様"]} ${item["本家制作"]} ${item["今見れる？"]} ${item["備考"]}</td>
+        <td style="display:none;">${item["出演者"]} ${item["本家様"]} ${item["本家制作"]} ${item["今見れる？"]} ${item["備考"]} ${item["概要欄"]}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -179,8 +181,7 @@ fetch('data.json')
     const item = data[index];
     const mainLink = item["本家様"] &&
                      !["オリジナル曲","？","恐らく未投稿","自作","不明","未投稿"].includes(item["本家様"])
-                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>`
-                     : item["本家様"];
+                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>` : item["本家様"];
     document.getElementById('modalDetails').innerHTML = `
       <p><strong>投稿日:</strong> ${item["投稿日"]}</p>
       <p><strong>曲名:</strong> ${item["曲名"]}</p>
@@ -189,7 +190,8 @@ fetch('data.json')
       <p><strong>創造神:</strong> ${item["本家制作"]}</p>
       <p><strong>本家様:</strong> ${mainLink}</p>
       <p><strong>今見れる？:</strong> ${item["今見れる？"]}</p>
-      <p><strong>備考:</strong> ${item["備考"]}</p>
+      <p><strong>概要欄:</strong> ${item["概要欄"] || "－"}</p>
+      <p><strong>備考:</strong> ${item["備考"] || "－"}</p>
     `;
     document.getElementById('modal').style.display='block';
   }
@@ -199,37 +201,52 @@ fetch('data.json')
     if(event.target === modal){ modal.style.display='none'; }
   }
 
-  function hiraToKana(str){
-    return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+  function normalize(str){
+    return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0)+0x60))
+              .replace(/\s/g,"")
+              .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+              .toLowerCase();
   }
 
   function filterTable(){
-    const filter = document.getElementById('searchInput').value.toLowerCase();
-    const filterKana = hiraToKana(filter);
+    const filter = normalize(document.getElementById('searchInput').value);
     const showDeleted = document.getElementById('showDeleted').checked;
 
-    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-      const searchCell = row.querySelector('td:last-child').textContent.toLowerCase();
-      const searchCellKana = hiraToKana(searchCell);
+    document.querySelectorAll('#videoTable tbody tr').forEach((row,i) => {
+      const tds = row.querySelectorAll('td');
+      const title = normalize(tds[1].textContent);
+      const details = normalize(tds[5].textContent);
+      const isDeleted = tds[5].textContent.includes("不可");
 
-      let combined = searchCell + (searchCell.includes("・") ? " コラボ" : "");
-      let combinedKana = searchCellKana + (searchCell.includes("・") ? " コラボ" : "");
-
-      if (searchCell.includes("オリジナル曲")) { combined += " オリジナル曲 おりじなる曲"; combinedKana += " オリジナル曲 おりじなる曲"; }
-      if (searchCell.includes("自作")) { combined += " 自作"; combinedKana += " 自作"; }
-      if (searchCell.includes("声真似")) { combined += " 声真似"; combinedKana += " 声真似"; }
-      if (searchCell.includes("替え歌")) { combined += " 替え歌"; combinedKana += " 替え歌"; }
-      if (searchCell.includes("未投稿") || searchCell.includes("恐らく未投稿") || searchCell.includes("不明")) {
-        combined += " カバー曲 かばー曲";
-        combinedKana += " カバー曲 かばー曲";
-      }
-
-      const matches = combined.includes(filter) || combinedKana.includes(filterKana);
-      const isDeleted = searchCell.includes("不可");
-
-      row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+      const matchesMain = title.includes(filter) || details.includes(filter);
+      row.style.display = (matchesMain && (!isDeleted || showDeleted)) ? '' : 'none';
     });
   }
+
+  function filterSummary(){
+    const filter = normalize(document.getElementById('summarySearchInput').value);
+    const showDeleted = document.getElementById('showDeleted').checked;
+
+    document.querySelectorAll('#videoTable tbody tr').forEach((row,i) => {
+      const tds = row.querySelectorAll('td');
+      const summary = normalize(data[i]["概要欄"] || "");
+      const isDeleted = tds[5].textContent.includes("不可");
+      row.style.display = (summary.includes(filter) && (!isDeleted || showDeleted)) ? '' : 'none';
+    });
+  }
+
+  document.getElementById('searchInput').addEventListener('input', filterTable);
+  document.getElementById('summarySearchInput').addEventListener('input', filterSummary);
+
+  document.getElementById('clearButton').addEventListener('click', () => {
+    document.getElementById('searchInput').value = '';
+    filterTable();
+  });
+
+  document.getElementById('summaryClearButton').addEventListener('click', () => {
+    document.getElementById('summarySearchInput').value = '';
+    filterSummary();
+  });
 
   const showDeletedCheckbox = document.getElementById('showDeleted');
   showDeletedCheckbox.addEventListener('click', function(e){
@@ -244,13 +261,9 @@ fetch('data.json')
     }
     renderTable(data);
     filterTable();
+    filterSummary();
   });
 
-  document.getElementById('searchInput').addEventListener('input', filterTable);
-  document.getElementById('clearButton').addEventListener('click', () => {
-    document.getElementById('searchInput').value = '';
-    filterTable();
-  });
   document.getElementById('sortButton').addEventListener('click',()=>{
     asc = !asc;
     const sorted = data.slice().sort((a,b)=>{
@@ -258,10 +271,12 @@ fetch('data.json')
     });
     renderTable(sorted);
     filterTable();
+    filterSummary();
   });
 
   renderTable(data);
   filterTable();
+  filterSummary();
 });
 </script>
 </body>
