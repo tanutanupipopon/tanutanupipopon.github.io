@@ -17,7 +17,7 @@ body {
 
 h1 { text-align:center; color:#fff; margin-bottom:20px; }
 
-#searchContainer, #descriptionSearchContainer {
+#searchContainer, #searchDescContainer {
   display: flex;
   gap: 5px;
   justify-content: center;
@@ -25,14 +25,14 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   margin-bottom: 10px;
 }
 
-#searchInput, #descriptionSearchInput, #passwordInput {
+#searchInput, #descSearchInput, #pwInput {
   padding:5px;
   width:250px;
   border:1px solid #ccc;
   border-radius:4px;
 }
 
-#clearButton, #clearDescriptionButton, #unlockButton {
+#clearButton, #descClearButton, #pwButton {
   padding:5px 10px;
   border:none;
   background-color:#38b48b;
@@ -40,9 +40,12 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   border-radius:4px;
   cursor:pointer;
 }
-#clearButton:hover, #clearDescriptionButton:hover, #unlockButton:hover { background-color:#2e8b57; }
+#clearButton:hover, #descClearButton:hover, #pwButton:hover { background-color:#2e8b57; }
 
-#showDeletedContainer { text-align:center; margin-bottom:10px; }
+#showDeletedContainer {
+  text-align:center;
+  margin-bottom:10px;
+}
 
 table {
   border-collapse: collapse;
@@ -61,7 +64,9 @@ th, td {
 
 th { background-color: #99ffcc; }
 
-tr:hover, tr.selected { background-color: #c3fade; }
+tr:hover, tr.selected {
+  background-color: #c3fade;
+}
 
 td.song { width:35%; max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
 td.date { text-align:center; padding-left:10px; padding-right:10px; white-space:nowrap; }
@@ -105,25 +110,23 @@ td.nico, td.youtube, td.detail { text-align: center; }
 
 <h1>動画リスト</h1>
 
-<!-- 曲名・歌唱者・本家制作 検索バー -->
+<!-- 検索バー -->
 <div id="searchContainer">
   <input id="searchInput" placeholder="曲名・歌唱者・本家制作検索...">
   <button id="clearButton">クリア</button>
 </div>
 
 <!-- 概要欄検索バー -->
-<div id="descriptionSearchContainer">
-  <input id="descriptionSearchInput" placeholder="概要欄検索...">
-  <button id="clearDescriptionButton">クリア</button>
+<div id="searchDescContainer">
+  <input id="descSearchInput" placeholder="概要欄検索...">
+  <button id="descClearButton">クリア</button>
 </div>
 
-<!-- 削除済みの動画表示(パスワード認証) -->
+<!-- 削除済み表示パスワード -->
 <div id="showDeletedContainer">
   <label>
-    <input type="checkbox" id="showDeleted" disabled> 削除済みの動画も表示する
+    <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する (パスワード: <input type="password" id="pwInput" placeholder="パスワード"><button id="pwButton">確認</button>)
   </label>
-  <input type="password" id="passwordInput" placeholder="パスワード">
-  <button id="unlockButton">解除</button>
 </div>
 
 <table id="videoTable">
@@ -135,6 +138,7 @@ td.nico, td.youtube, td.detail { text-align: center; }
       <th>YouTube</th>
       <th>詳細</th>
       <th style="display:none;">検索用</th>
+      <th style="display:none;">概要検索用</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -153,17 +157,25 @@ fetch('data.json')
 .then(data => {
   const tbody = document.querySelector('#videoTable tbody');
   let asc = true;
-  const PASSWORD = "sm28789389"; // パスワード設定
+  let deletedUnlocked = false;
+  const pw = "sm28789389";
+
+  function hiraToKana(str){
+    return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+  }
+
+  function normalize(str){
+    return hiraToKana(str.toLowerCase().replace(/\s|　/g,""));
+  }
 
   function renderTable(sortedData){
     tbody.innerHTML = '';
     sortedData.forEach((item,index)=>{
       const isDeleted = item["今見れる？"] === "不可";
-      if(isDeleted && !document.getElementById('showDeleted').checked) return;
+      if(isDeleted && !deletedUnlocked) return;
 
       let nicoLink = (item["ニコニコ"] && item["ニコニコ"]!=="－") 
         ? `<a href="https://${item["ニコニコ"]}" target="_blank">▶ニコニコ動画</a>` : "－";
-
       let ytLink = (item["YouTube"] && item["YouTube"]!=="－") 
         ? `<a href="${item["YouTube"].startsWith('http') ? item["YouTube"] : 'https://' + item["YouTube"]}" target="_blank">▶YouTube</a>` : "－";
 
@@ -174,7 +186,8 @@ fetch('data.json')
         <td class="nico">${nicoLink}</td>
         <td class="youtube">${ytLink}</td>
         <td class="detail"><button onclick="showDetails(${index})">詳細</button></td>
-        <td style="display:none;">${item["出演者"]} ${item["本家制作"]} ${item["曲名"]} ${item["今見れる？"]}</td>
+        <td style="display:none;">${item["曲名"]} ${item["出演者"]} ${item["本家制作"]}</td>
+        <td style="display:none;">${item["概要欄"] || ""}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -184,8 +197,7 @@ fetch('data.json')
     const item = data[index];
     const mainLink = item["本家様"] &&
                      !["オリジナル曲","？","恐らく未投稿","自作","不明","未投稿"].includes(item["本家様"])
-                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>`
-                     : item["本家様"];
+                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>` : item["本家様"];
     document.getElementById('modalDetails').innerHTML = `
       <p><strong>投稿日:</strong> ${item["投稿日"]}</p>
       <p><strong>曲名:</strong> ${item["曲名"]}</p>
@@ -194,86 +206,58 @@ fetch('data.json')
       <p><strong>創造神:</strong> ${item["本家制作"]}</p>
       <p><strong>本家様:</strong> ${mainLink}</p>
       <p><strong>今見れる？:</strong> ${item["今見れる？"]}</p>
-      <p><strong>概要欄:</strong> ${item["備考"]}</p>
+      <p><strong>概要欄:</strong> ${item["概要欄"] || ""}</p>
+      <p><strong>備考:</strong> ${item["備考"]}</p>
     `;
     document.getElementById('modal').style.display='block';
   }
 
   window.onclick = function(event){
-    const modal = document.getElementById('modal');
-    if(event.target === modal){ modal.style.display='none'; }
+    if(event.target === document.getElementById('modal')){ document.getElementById('modal').style.display='none'; }
   }
 
-  function hiraToKana(str){ return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60)); }
-  function normalizeSpace(str){ return str.replace(/\s+/g, ''); }
-
-  // メイン検索
-  function filterTable(){
-    const filter = normalizeSpace(document.getElementById('searchInput').value.toLowerCase());
-    const filterKana = normalizeSpace(hiraToKana(filter));
-    const showDeleted = document.getElementById('showDeleted').checked;
-
+  function filterMain(){
+    const filter = normalize(document.getElementById('searchInput').value);
     document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-      const searchCell = normalizeSpace(row.querySelector('td:last-child').textContent.toLowerCase());
-      const searchCellKana = normalizeSpace(hiraToKana(searchCell));
-
-      const matches = searchCell.includes(filter) || searchCellKana.includes(filterKana);
-      const isDeleted = row.querySelector('td:last-child').textContent.includes("不可");
-
-      row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+      const searchCell = normalize(row.querySelector('td:nth-child(6)').textContent);
+      row.style.display = searchCell.includes(filter) ? '' : 'none';
     });
   }
 
-  // 概要欄検索
-  function filterDescription(){
-    const filter = normalizeSpace(document.getElementById('descriptionSearchInput').value.toLowerCase());
-    const filterKana = normalizeSpace(hiraToKana(filter));
-
-    document.querySelectorAll('#videoTable tbody tr').forEach((row,i) => {
-      const desc = normalizeSpace(data[i]["備考"].toLowerCase());
-      const descKana = normalizeSpace(hiraToKana(desc));
-
-      row.style.display = (desc.includes(filter) || descKana.includes(filterKana)) ? '' : 'none';
+  function filterDesc(){
+    const filter = normalize(document.getElementById('descSearchInput').value);
+    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
+      const searchCell = normalize(row.querySelector('td:nth-child(7)').textContent);
+      row.style.display = searchCell.includes(filter) ? '' : 'none';
     });
   }
 
-  // パスワード認証
-  document.getElementById('unlockButton').addEventListener('click',()=>{
-    const pass = document.getElementById('passwordInput').value;
-    if(pass === PASSWORD){
-      document.getElementById('showDeleted').disabled = false;
-      alert("削除済み表示が解除されました");
-    } else {
-      alert("パスワードが違います");
-    }
-    document.getElementById('passwordInput').value = '';
-  });
+  document.getElementById('searchInput').addEventListener('input', filterMain);
+  document.getElementById('descSearchInput').addEventListener('input', filterDesc);
 
-  document.getElementById('searchInput').addEventListener('input', filterTable);
-  document.getElementById('descriptionSearchInput').addEventListener('input', filterDescription);
-
-  document.getElementById('showDeleted').addEventListener('change', ()=>{renderTable(data); filterTable();});
-
-  document.getElementById('clearButton').addEventListener('click', () => {
+  document.getElementById('clearButton').addEventListener('click', ()=>{
     document.getElementById('searchInput').value = '';
-    filterTable();
-  });
-  document.getElementById('clearDescriptionButton').addEventListener('click', () => {
-    document.getElementById('descriptionSearchInput').value = '';
-    filterDescription();
+    filterMain();
   });
 
-  document.getElementById('sortButton').addEventListener('click',()=>{
+  document.getElementById('descClearButton').addEventListener('click', ()=>{
+    document.getElementById('descSearchInput').value = '';
+    filterDesc();
+  });
+
+  document.getElementById('pwButton').addEventListener('click', ()=>{
+    const input = document.getElementById('pwInput').value;
+    if(input === pw){ deletedUnlocked = true; alert("削除済み動画表示が有効になりました"); renderTable(data); }
+    else{ alert("パスワードが違います"); document.getElementById('showDeleted').checked = false; }
+  });
+
+  document.getElementById('sortButton').addEventListener('click', ()=>{
     asc = !asc;
-    const sorted = data.slice().sort((a,b)=>{
-      return asc ? new Date(a["投稿日"]) - new Date(b["投稿日"]) : new Date(b["投稿日"]) - new Date(a["投稿日"]);
-    });
+    const sorted = data.slice().sort((a,b)=> asc ? new Date(a["投稿日"]) - new Date(b["投稿日"]) : new Date(b["投稿日"]) - new Date(a["投稿日"]));
     renderTable(sorted);
-    filterTable();
   });
 
   renderTable(data);
-  filterTable();
 });
 </script>
 </body>
