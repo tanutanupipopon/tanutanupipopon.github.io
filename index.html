@@ -109,19 +109,16 @@ td.nico, td.youtube, td.detail { text-align: center; }
 
 <h1>動画リスト</h1>
 
-<!-- 検索バーとクリアボタン -->
 <div id="searchContainer">
   <input id="searchInput" placeholder="検索...">
   <button id="clearButton">クリア</button>
 </div>
 
-<!-- 削除済みの動画を表示するチェックボックス -->
-<div id="showDeletedContainer" style="text-align:center; margin-bottom:10px;">
+<div id="showDeletedContainer">
   <label>
     <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する
   </label>
 </div>
-
 
 <table id="videoTable">
   <thead>
@@ -145,6 +142,8 @@ td.nico, td.youtube, td.detail { text-align: center; }
 </div>
 
 <script>
+const PASSWORD = "sm28789389";
+
 fetch('data.json')
 .then(res => res.json())
 .then(data => {
@@ -154,14 +153,12 @@ fetch('data.json')
   function renderTable(sortedData){
     tbody.innerHTML = '';
     sortedData.forEach((item,index)=>{
-      // 今見れる？が「不可」なら削除扱い
       const isDeleted = item["今見れる？"] === "不可";
       if(isDeleted && !document.getElementById('showDeleted').checked) return;
 
       let nicoLink = (item["ニコニコ"] && item["ニコニコ"]!=="－") 
         ? `<a href="https://${item["ニコニコ"]}" target="_blank">▶ニコニコ動画</a>` : "－";
 
-      // YouTubeリンク修正（必ず https:// で始める）
       let ytLink = (item["YouTube"] && item["YouTube"]!=="－") 
         ? `<a href="${item["YouTube"].startsWith('http') ? item["YouTube"] : 'https://' + item["YouTube"]}" target="_blank">▶YouTube</a>` : "－";
 
@@ -206,59 +203,54 @@ fetch('data.json')
     return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
   }
 
-   function filterTable(){
-  const filter = document.getElementById('searchInput').value.toLowerCase();
-  const filterKana = hiraToKana(filter);
-  const showDeleted = document.getElementById('showDeleted').checked;
+  function filterTable(){
+    const filter = document.getElementById('searchInput').value.toLowerCase();
+    const filterKana = hiraToKana(filter);
+    const showDeleted = document.getElementById('showDeleted').checked;
 
-  document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-    const searchCell = row.querySelector('td:last-child').textContent.toLowerCase();
-    const searchCellKana = hiraToKana(searchCell);
+    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
+      const searchCell = row.querySelector('td:last-child').textContent.toLowerCase();
+      const searchCellKana = hiraToKana(searchCell);
 
-    // 出演者に「・」があれば「コラボ」を追加
-    let combined = searchCell + (searchCell.includes("・") ? " コラボ" : "");
-    let combinedKana = searchCellKana + (searchCell.includes("・") ? " コラボ" : "");
+      let combined = searchCell + (searchCell.includes("・") ? " コラボ" : "");
+      let combinedKana = searchCellKana + (searchCell.includes("・") ? " コラボ" : "");
 
-    // ---- 分類ロジック ----
-    if (searchCell.includes("オリジナル曲")) {
-      combined += " オリジナル曲 おりじなる曲";
-      combinedKana += " オリジナル曲 おりじなる曲";
-    }
-    if (searchCell.includes("自作")) {
-      combined += " 自作";
-      combinedKana += " 自作";
-    }
-    if (searchCell.includes("声真似")) {
-      combined += " 声真似";
-      combinedKana += " 声真似";
-    }
-    if (searchCell.includes("替え歌")) {
-      combined += " 替え歌";
-      combinedKana += " 替え歌";
-    }
-    // カバー曲分類（未投稿・恐らく未投稿・不明）
-    if (searchCell.includes("未投稿") || searchCell.includes("恐らく未投稿") || searchCell.includes("不明")) {
-      combined += " カバー曲 かばー曲";
-      combinedKana += " カバー曲 かばー曲";
-    }
-    // ---- 分類ここまで ----
+      if (searchCell.includes("オリジナル曲")) { combined += " オリジナル曲 おりじなる曲"; combinedKana += " オリジナル曲 おりじなる曲"; }
+      if (searchCell.includes("自作")) { combined += " 自作"; combinedKana += " 自作"; }
+      if (searchCell.includes("声真似")) { combined += " 声真似"; combinedKana += " 声真似"; }
+      if (searchCell.includes("替え歌")) { combined += " 替え歌"; combinedKana += " 替え歌"; }
+      if (searchCell.includes("未投稿") || searchCell.includes("恐らく未投稿") || searchCell.includes("不明")) {
+        combined += " カバー曲 かばー曲";
+        combinedKana += " カバー曲 かばー曲";
+      }
 
-    const matches = combined.includes(filter) || combinedKana.includes(filterKana);
-    const isDeleted = searchCell.includes("不可");
+      const matches = combined.includes(filter) || combinedKana.includes(filterKana);
+      const isDeleted = searchCell.includes("不可");
 
-    row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+      row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+    });
+  }
+
+  const showDeletedCheckbox = document.getElementById('showDeleted');
+  showDeletedCheckbox.addEventListener('click', function(e){
+    if(showDeletedCheckbox.checked){
+      const pwd = prompt("削除済み動画を表示するにはパスワードを入力してください","");
+      if(pwd !== PASSWORD){
+        alert("パスワードが違います");
+        e.preventDefault();
+        showDeletedCheckbox.checked = false;
+        return false;
+      }
+    }
+    renderTable(data);
+    filterTable();
   });
-}
-
-
 
   document.getElementById('searchInput').addEventListener('input', filterTable);
-  document.getElementById('showDeleted').addEventListener('change', ()=>{renderTable(data); filterTable();});
   document.getElementById('clearButton').addEventListener('click', () => {
     document.getElementById('searchInput').value = '';
     filterTable();
   });
-
   document.getElementById('sortButton').addEventListener('click',()=>{
     asc = !asc;
     const sorted = data.slice().sort((a,b)=>{
