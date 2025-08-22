@@ -5,34 +5,32 @@
 <title>動画リスト</title>
 <style>
 body {
-  background-image: url("https://github.com/tanutanupipopon/tanutanupipopon.github.io/raw/refs/heads/main/tanutanu.jpg");
-  background-repeat: repeat-y;
-  background-size: 100% auto;
-  background-attachment: scroll;
   font-family: Arial, sans-serif;
   padding: 20px;
   color: #000;
   margin:0;
+  background: linear-gradient(to bottom, #7ee0a5 0%, #38b48b 30%, #55c69b 60%, #ccffe5 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
 }
 
 h1 { text-align:center; color:#fff; margin-bottom:20px; }
 
-#searchContainer, #searchDescContainer {
+#searchContainer {
   display: flex;
   gap: 5px;
   justify-content: center;
   align-items: center;
   margin-bottom: 10px;
 }
-
-#searchInput, #descSearchInput, #pwInput {
+#searchInput {
   padding:5px;
   width:250px;
   border:1px solid #ccc;
   border-radius:4px;
 }
 
-#clearButton, #descClearButton, #pwButton {
+#clearButton {
   padding:5px 10px;
   border:none;
   background-color:#38b48b;
@@ -40,7 +38,7 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   border-radius:4px;
   cursor:pointer;
 }
-#clearButton:hover, #descClearButton:hover, #pwButton:hover { background-color:#2e8b57; }
+#clearButton:hover { background-color:#2e8b57; }
 
 #showDeletedContainer {
   text-align:center;
@@ -104,30 +102,26 @@ button:hover { background-color:#2e8b57; }
 }
 
 td.nico, td.youtube, td.detail { text-align: center; }
+
 </style>
 </head>
 <body>
 
 <h1>動画リスト</h1>
 
-<!-- 検索バー -->
+<!-- 検索バーとクリアボタン -->
 <div id="searchContainer">
-  <input id="searchInput" placeholder="曲名・歌唱者・本家制作検索...">
+  <input id="searchInput" placeholder="検索...">
   <button id="clearButton">クリア</button>
 </div>
 
-<!-- 概要欄検索バー -->
-<div id="searchDescContainer">
-  <input id="descSearchInput" placeholder="概要欄検索...">
-  <button id="descClearButton">クリア</button>
-</div>
-
-<!-- 削除済み表示パスワード -->
-<div id="showDeletedContainer">
+<!-- 削除済みの動画を表示するチェックボックス -->
+<div id="showDeletedContainer" style="text-align:center; margin-bottom:10px;">
   <label>
-    <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する (パスワード: <input type="password" id="pwInput" placeholder="パスワード"><button id="pwButton">確認</button>)
+    <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する
   </label>
 </div>
+
 
 <table id="videoTable">
   <thead>
@@ -138,7 +132,6 @@ td.nico, td.youtube, td.detail { text-align: center; }
       <th>YouTube</th>
       <th>詳細</th>
       <th style="display:none;">検索用</th>
-      <th style="display:none;">概要検索用</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -157,25 +150,18 @@ fetch('data.json')
 .then(data => {
   const tbody = document.querySelector('#videoTable tbody');
   let asc = true;
-  let deletedUnlocked = false;
-  const pw = "sm28789389";
-
-  function hiraToKana(str){
-    return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
-  }
-
-  function normalize(str){
-    return hiraToKana(str.toLowerCase().replace(/\s|　/g,""));
-  }
 
   function renderTable(sortedData){
     tbody.innerHTML = '';
     sortedData.forEach((item,index)=>{
+      // 今見れる？が「不可」なら削除扱い
       const isDeleted = item["今見れる？"] === "不可";
-      if(isDeleted && !deletedUnlocked) return;
+      if(isDeleted && !document.getElementById('showDeleted').checked) return;
 
       let nicoLink = (item["ニコニコ"] && item["ニコニコ"]!=="－") 
         ? `<a href="https://${item["ニコニコ"]}" target="_blank">▶ニコニコ動画</a>` : "－";
+
+      // YouTubeリンク修正（必ず https:// で始める）
       let ytLink = (item["YouTube"] && item["YouTube"]!=="－") 
         ? `<a href="${item["YouTube"].startsWith('http') ? item["YouTube"] : 'https://' + item["YouTube"]}" target="_blank">▶YouTube</a>` : "－";
 
@@ -186,8 +172,7 @@ fetch('data.json')
         <td class="nico">${nicoLink}</td>
         <td class="youtube">${ytLink}</td>
         <td class="detail"><button onclick="showDetails(${index})">詳細</button></td>
-        <td style="display:none;">${item["曲名"]} ${item["出演者"]} ${item["本家制作"]}</td>
-        <td style="display:none;">${item["概要欄"] || ""}</td>
+        <td style="display:none;">${item["出演者"]} ${item["本家様"]} ${item["本家制作"]} ${item["今見れる？"]} ${item["備考"]}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -197,7 +182,8 @@ fetch('data.json')
     const item = data[index];
     const mainLink = item["本家様"] &&
                      !["オリジナル曲","？","恐らく未投稿","自作","不明","未投稿"].includes(item["本家様"])
-                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>` : item["本家様"];
+                     ? `<a href="https://${item["本家様"]}" target="_blank">${item["本家様"]}</a>`
+                     : item["本家様"];
     document.getElementById('modalDetails').innerHTML = `
       <p><strong>投稿日:</strong> ${item["投稿日"]}</p>
       <p><strong>曲名:</strong> ${item["曲名"]}</p>
@@ -206,58 +192,84 @@ fetch('data.json')
       <p><strong>創造神:</strong> ${item["本家制作"]}</p>
       <p><strong>本家様:</strong> ${mainLink}</p>
       <p><strong>今見れる？:</strong> ${item["今見れる？"]}</p>
-      <p><strong>概要欄:</strong> ${item["概要欄"] || ""}</p>
       <p><strong>備考:</strong> ${item["備考"]}</p>
     `;
     document.getElementById('modal').style.display='block';
   }
 
   window.onclick = function(event){
-    if(event.target === document.getElementById('modal')){ document.getElementById('modal').style.display='none'; }
+    const modal = document.getElementById('modal');
+    if(event.target === modal){ modal.style.display='none'; }
   }
 
-  function filterMain(){
-    const filter = normalize(document.getElementById('searchInput').value);
-    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-      const searchCell = normalize(row.querySelector('td:nth-child(6)').textContent);
-      row.style.display = searchCell.includes(filter) ? '' : 'none';
-    });
+  function hiraToKana(str){
+    return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
   }
 
-  function filterDesc(){
-    const filter = normalize(document.getElementById('descSearchInput').value);
-    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-      const searchCell = normalize(row.querySelector('td:nth-child(7)').textContent);
-      row.style.display = searchCell.includes(filter) ? '' : 'none';
-    });
-  }
+   function filterTable(){
+  const filter = document.getElementById('searchInput').value.toLowerCase();
+  const filterKana = hiraToKana(filter);
+  const showDeleted = document.getElementById('showDeleted').checked;
 
-  document.getElementById('searchInput').addEventListener('input', filterMain);
-  document.getElementById('descSearchInput').addEventListener('input', filterDesc);
+  document.querySelectorAll('#videoTable tbody tr').forEach(row => {
+    const searchCell = row.querySelector('td:last-child').textContent.toLowerCase();
+    const searchCellKana = hiraToKana(searchCell);
 
-  document.getElementById('clearButton').addEventListener('click', ()=>{
+    // 出演者に「・」があれば「コラボ」を追加
+    let combined = searchCell + (searchCell.includes("・") ? " コラボ" : "");
+    let combinedKana = searchCellKana + (searchCell.includes("・") ? " コラボ" : "");
+
+    // ---- 分類ロジック ----
+    if (searchCell.includes("オリジナル曲")) {
+      combined += " オリジナル曲 おりじなる曲";
+      combinedKana += " オリジナル曲 おりじなる曲";
+    }
+    if (searchCell.includes("自作")) {
+      combined += " 自作";
+      combinedKana += " 自作";
+    }
+    if (searchCell.includes("声真似")) {
+      combined += " 声真似";
+      combinedKana += " 声真似";
+    }
+    if (searchCell.includes("替え歌")) {
+      combined += " 替え歌";
+      combinedKana += " 替え歌";
+    }
+    // カバー曲分類（未投稿・恐らく未投稿・不明）
+    if (searchCell.includes("未投稿") || searchCell.includes("恐らく未投稿") || searchCell.includes("不明")) {
+      combined += " カバー曲 かばー曲";
+      combinedKana += " カバー曲 かばー曲";
+    }
+    // ---- 分類ここまで ----
+
+    const matches = combined.includes(filter) || combinedKana.includes(filterKana);
+    const isDeleted = searchCell.includes("不可");
+
+    row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+  });
+}
+
+
+
+  document.getElementById('searchInput').addEventListener('input', filterTable);
+  document.getElementById('showDeleted').addEventListener('change', ()=>{renderTable(data); filterTable();});
+  document.getElementById('clearButton').addEventListener('click', () => {
     document.getElementById('searchInput').value = '';
-    filterMain();
+    filterTable();
   });
 
-  document.getElementById('descClearButton').addEventListener('click', ()=>{
-    document.getElementById('descSearchInput').value = '';
-    filterDesc();
-  });
-
-  document.getElementById('pwButton').addEventListener('click', ()=>{
-    const input = document.getElementById('pwInput').value;
-    if(input === pw){ deletedUnlocked = true; alert("削除済み動画表示が有効になりました"); renderTable(data); }
-    else{ alert("パスワードが違います"); document.getElementById('showDeleted').checked = false; }
-  });
-
-  document.getElementById('sortButton').addEventListener('click', ()=>{
+  document.getElementById('sortButton').addEventListener('click',()=>{
     asc = !asc;
-    const sorted = data.slice().sort((a,b)=> asc ? new Date(a["投稿日"]) - new Date(b["投稿日"]) : new Date(b["投稿日"]) - new Date(a["投稿日"]));
+    const sorted = data.slice().sort((a,b)=>{
+      return asc ? new Date(a["投稿日"]) - new Date(b["投稿日"]) : new Date(b["投稿日"]) - new Date(a["投稿日"]);
+    });
     renderTable(sorted);
+    filterTable();
   });
 
   renderTable(data);
+  filterTable();
 });
 </script>
 </body>
