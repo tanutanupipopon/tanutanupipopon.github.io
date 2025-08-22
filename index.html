@@ -4,34 +4,35 @@
 <meta charset="UTF-8">
 <title>動画リスト</title>
 <style>
-  
-
-
 body {
-  background-image: url("https://github.com/tanutanupipopon/tanutanupipopon.github.io/raw/main/tanutanu.jpg");
+  background-image: url("https://github.com/tanutanupipopon/tanutanupipopon.github.io/raw/refs/heads/main/tanutanu.jpg");
   background-repeat: repeat-y;
-  background-size: 100% auto;   /* 横幅を画面いっぱいに、縦は自動 */
+  background-size: 100% auto;
   background-attachment: scroll;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  color: #000;
+  margin:0;
 }
-
 
 h1 { text-align:center; color:#fff; margin-bottom:20px; }
 
-#searchContainer {
+#searchContainer, #descriptionSearchContainer {
   display: flex;
   gap: 5px;
   justify-content: center;
   align-items: center;
   margin-bottom: 10px;
 }
-#searchInput {
+
+#searchInput, #descriptionSearchInput {
   padding:5px;
   width:250px;
   border:1px solid #ccc;
   border-radius:4px;
 }
 
-#clearButton {
+#clearButton, #clearDescriptionButton {
   padding:5px 10px;
   border:none;
   background-color:#38b48b;
@@ -39,12 +40,9 @@ h1 { text-align:center; color:#fff; margin-bottom:20px; }
   border-radius:4px;
   cursor:pointer;
 }
-#clearButton:hover { background-color:#2e8b57; }
+#clearButton:hover, #clearDescriptionButton:hover { background-color:#2e8b57; }
 
-#showDeletedContainer {
-  text-align:center;
-  margin-bottom:10px;
-}
+#showDeletedContainer { text-align:center; margin-bottom:10px; }
 
 table {
   border-collapse: collapse;
@@ -63,9 +61,7 @@ th, td {
 
 th { background-color: #99ffcc; }
 
-tr:hover, tr.selected {
-  background-color: #c3fade;
-}
+tr:hover, tr.selected { background-color: #c3fade; }
 
 td.song { width:35%; max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; }
 td.date { text-align:center; padding-left:10px; padding-right:10px; white-space:nowrap; }
@@ -103,26 +99,30 @@ button:hover { background-color:#2e8b57; }
 }
 
 td.nico, td.youtube, td.detail { text-align: center; }
-
 </style>
 </head>
 <body>
 
 <h1>動画リスト</h1>
 
-<!-- 検索バーとクリアボタン -->
+<!-- 曲名・歌唱者・本家制作 検索バー -->
 <div id="searchContainer">
-  <input id="searchInput" placeholder="検索...">
+  <input id="searchInput" placeholder="曲名・歌唱者・本家制作検索...">
   <button id="clearButton">クリア</button>
 </div>
 
-<!-- 削除済みの動画を表示するチェックボックス -->
-<div id="showDeletedContainer" style="text-align:center; margin-bottom:10px;">
+<!-- 概要欄検索バー -->
+<div id="descriptionSearchContainer">
+  <input id="descriptionSearchInput" placeholder="概要欄検索...">
+  <button id="clearDescriptionButton">クリア</button>
+</div>
+
+<!-- 削除済みの動画表示 -->
+<div id="showDeletedContainer">
   <label>
     <input type="checkbox" id="showDeleted"> 削除済みの動画も表示する
   </label>
 </div>
-
 
 <table id="videoTable">
   <thead>
@@ -155,14 +155,12 @@ fetch('data.json')
   function renderTable(sortedData){
     tbody.innerHTML = '';
     sortedData.forEach((item,index)=>{
-      // 今見れる？が「不可」なら削除扱い
       const isDeleted = item["今見れる？"] === "不可";
       if(isDeleted && !document.getElementById('showDeleted').checked) return;
 
       let nicoLink = (item["ニコニコ"] && item["ニコニコ"]!=="－") 
         ? `<a href="https://${item["ニコニコ"]}" target="_blank">▶ニコニコ動画</a>` : "－";
 
-      // YouTubeリンク修正（必ず https:// で始める）
       let ytLink = (item["YouTube"] && item["YouTube"]!=="－") 
         ? `<a href="${item["YouTube"].startsWith('http') ? item["YouTube"] : 'https://' + item["YouTube"]}" target="_blank">▶YouTube</a>` : "－";
 
@@ -173,7 +171,7 @@ fetch('data.json')
         <td class="nico">${nicoLink}</td>
         <td class="youtube">${ytLink}</td>
         <td class="detail"><button onclick="showDetails(${index})">詳細</button></td>
-        <td style="display:none;">${item["出演者"]} ${item["本家様"]} ${item["本家制作"]} ${item["今見れる？"]} ${item["備考"]}</td>
+        <td style="display:none;">${item["出演者"]} ${item["本家制作"]} ${item["曲名"]} ${item["備考"]} ${item["今見れる？"]}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -193,7 +191,7 @@ fetch('data.json')
       <p><strong>創造神:</strong> ${item["本家制作"]}</p>
       <p><strong>本家様:</strong> ${mainLink}</p>
       <p><strong>今見れる？:</strong> ${item["今見れる？"]}</p>
-      <p><strong>備考:</strong> ${item["備考"]}</p>
+      <p><strong>概要欄:</strong> ${item["備考"]}</p>
     `;
     document.getElementById('modal').style.display='block';
   }
@@ -206,58 +204,48 @@ fetch('data.json')
   function hiraToKana(str){
     return str.replace(/[ぁ-ん]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
   }
+  function normalizeSpace(str){ return str.replace(/\s+/g, ''); }
 
-   function filterTable(){
-  const filter = document.getElementById('searchInput').value.toLowerCase();
-  const filterKana = hiraToKana(filter);
-  const showDeleted = document.getElementById('showDeleted').checked;
+  function filterTable(){
+    const filter = normalizeSpace(document.getElementById('searchInput').value.toLowerCase());
+    const filterKana = normalizeSpace(hiraToKana(filter));
+    const showDeleted = document.getElementById('showDeleted').checked;
 
-  document.querySelectorAll('#videoTable tbody tr').forEach(row => {
-    const searchCell = row.querySelector('td:last-child').textContent.toLowerCase();
-    const searchCellKana = hiraToKana(searchCell);
+    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
+      const searchCell = normalizeSpace(row.querySelector('td:last-child').textContent.toLowerCase());
+      const searchCellKana = normalizeSpace(hiraToKana(searchCell));
+      let combined = searchCell;
+      let combinedKana = searchCellKana;
 
-    // 出演者に「・」があれば「コラボ」を追加
-    let combined = searchCell + (searchCell.includes("・") ? " コラボ" : "");
-    let combinedKana = searchCellKana + (searchCell.includes("・") ? " コラボ" : "");
+      const matches = combined.includes(filter) || combinedKana.includes(filterKana);
+      const isDeleted = row.querySelector('td:last-child').textContent.includes("不可");
+      row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
+    });
+  }
 
-    // ---- 分類ロジック ----
-    if (searchCell.includes("オリジナル曲")) {
-      combined += " オリジナル曲 おりじなる曲";
-      combinedKana += " オリジナル曲 おりじなる曲";
-    }
-    if (searchCell.includes("自作")) {
-      combined += " 自作";
-      combinedKana += " 自作";
-    }
-    if (searchCell.includes("声真似")) {
-      combined += " 声真似";
-      combinedKana += " 声真似";
-    }
-    if (searchCell.includes("替え歌")) {
-      combined += " 替え歌";
-      combinedKana += " 替え歌";
-    }
-    // カバー曲分類（未投稿・恐らく未投稿・不明）
-    if (searchCell.includes("未投稿") || searchCell.includes("恐らく未投稿") || searchCell.includes("不明")) {
-      combined += " カバー曲 かばー曲";
-      combinedKana += " カバー曲 かばー曲";
-    }
-    // ---- 分類ここまで ----
+  function filterDescription(){
+    const filter = normalizeSpace(document.getElementById('descriptionSearchInput').value.toLowerCase());
+    const filterKana = normalizeSpace(hiraToKana(filter));
 
-    const matches = combined.includes(filter) || combinedKana.includes(filterKana);
-    const isDeleted = searchCell.includes("不可");
+    document.querySelectorAll('#videoTable tbody tr').forEach(row => {
+      const description = normalizeSpace(row.querySelector('td:last-child').textContent.toLowerCase());
+      const descriptionKana = normalizeSpace(hiraToKana(description));
 
-    row.style.display = (matches && (!isDeleted || showDeleted)) ? '' : 'none';
-  });
-}
-
-
+      row.style.display = (description.includes(filter) || descriptionKana.includes(filterKana)) ? '' : 'none';
+    });
+  }
 
   document.getElementById('searchInput').addEventListener('input', filterTable);
   document.getElementById('showDeleted').addEventListener('change', ()=>{renderTable(data); filterTable();});
   document.getElementById('clearButton').addEventListener('click', () => {
     document.getElementById('searchInput').value = '';
     filterTable();
+  });
+
+  document.getElementById('descriptionSearchInput').addEventListener('input', filterDescription);
+  document.getElementById('clearDescriptionButton').addEventListener('click', () => {
+    document.getElementById('descriptionSearchInput').value = '';
+    filterDescription();
   });
 
   document.getElementById('sortButton').addEventListener('click',()=>{
@@ -272,22 +260,6 @@ fetch('data.json')
   renderTable(data);
   filterTable();
 });
-
-document.getElementById('showDeleted').addEventListener('change', ()=> {
-  const checkbox = document.getElementById('showDeleted');
-  if (checkbox.checked) {
-    const password = prompt("パスワードを入力してください:");
-    if (password !== "sm28789389") {
-      alert("パスワードが違います");
-      checkbox.checked = false;
-      return;
-    }
-  }
-  renderTable(data);
-  filterTable();
-});
-
-  
 </script>
 </body>
 </html>
